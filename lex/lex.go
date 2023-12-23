@@ -23,6 +23,19 @@ type RBrace struct {
 	End int
 }
 
+type DoubleQuote struct {
+	Token
+	Pos int
+	End int
+}
+
+type Operator struct {
+	Token
+	Pos  int
+	End  int
+	Kind string
+}
+
 type Keyword struct {
 	Token,
 	Value string
@@ -39,8 +52,9 @@ type Ident struct {
 
 type Number struct {
 	Token
-	Pos int
-	End int
+	Value string
+	Pos   int
+	End   int
 }
 
 func (x LBrace) GetPos() (int, int) {
@@ -102,6 +116,11 @@ func LexSourceFile(sourceFile string) []Token {
 						tokens = append(tokens, Ident{Pos: pos, End: end, Value: value.String()})
 					}
 					value.Reset()
+				} else if numberValue.Len() != 0 {
+					pos := index - len(numberValue.String()) + 1
+					end := index
+					tokens = append(tokens, Number{Pos: pos, End: end, Value: numberValue.String()})
+					numberValue.Reset()
 				}
 			} else if isSymbol(char) && (unicode.IsLetter(rune(data[index+1])) || unicode.IsNumber(rune(data[index+1])) || data[index+1] == ' ' || data[index+1] == '\t' || data[index+1] == '\n') && !isSymbol(data[index+1]) {
 				if symbol.Len() != 0 {
@@ -112,6 +131,18 @@ func LexSourceFile(sourceFile string) []Token {
 						tokens = append(tokens, LBrace{Pos: pos, End: end})
 					case "}":
 						tokens = append(tokens, RBrace{Pos: pos, End: end})
+					case "\"":
+						tokens = append(tokens, DoubleQuote{Pos: pos, End: end})
+					case "*":
+						tokens = append(tokens, Operator{Pos: pos, End: end, Kind: "*"})
+					case "/":
+						tokens = append(tokens, Operator{Pos: pos, End: end, Kind: "/"})
+					case "+":
+						tokens = append(tokens, Operator{Pos: pos, End: end, Kind: "+"})
+					case "-":
+						tokens = append(tokens, Operator{Pos: pos, End: end, Kind: "-"})
+					case "=":
+						tokens = append(tokens, Operator{Pos: pos, End: end, Kind: "="})
 					}
 					symbol.Reset()
 				}
@@ -132,5 +163,5 @@ func charIn(char byte, chars ...byte) bool {
 }
 
 func isSymbol(char byte) bool {
-	return charIn(char, '{', '}', '(', ')', ';')
+	return charIn(char, '{', '}', '(', ')', ';', '+', '*', '/', '-', '=')
 }

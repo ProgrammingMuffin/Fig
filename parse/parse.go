@@ -7,6 +7,7 @@ import (
 
 	_ast "github.com/ProgrammingMuffin/Fig/ast"
 	_lex "github.com/ProgrammingMuffin/Fig/lex"
+	"github.com/k0kubun/pp/v3"
 )
 
 var Scan int = 0
@@ -78,12 +79,137 @@ func ParseBlock() (*_ast.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	switch rbrace := Tokens[Scan].(type) {
+	switch x := Tokens[Scan].(type) {
+	case _lex.Ident:
+		stmts, err := ParseStatements()
+		if err != nil {
+			return nil, err
+		}
+		block.Stmts = stmts
 	case _lex.RBrace:
-		block.RBrace = rbrace.Pos
+		block.RBrace = x.Pos
+		return &block, nil
+	}
+	SafeInc()
+	switch x := Tokens[Scan].(type) {
+	case _lex.RBrace:
+		block.RBrace = x.Pos
 		return &block, nil
 	}
 	fmt.Println("Error parsing block")
+	os.Exit(0)
+	return nil, nil
+}
+
+func ParseStatements() ([]_ast.Stmt, error) {
+	stmts := []_ast.Stmt{}
+	for {
+		switch Tokens[Scan].(type) {
+		case _lex.RBrace:
+			goto OUTSIDE
+		}
+		stmt, err := ParseStatement()
+		if err != nil {
+			return nil, err
+		}
+		if stmt != nil {
+			stmts = append(stmts, stmt)
+		} else {
+			goto OUTSIDE
+		}
+	}
+OUTSIDE:
+	return stmts, nil
+}
+
+func ParseStatement() (_ast.Stmt, error) {
+	if (Scan + 1) < len(Tokens) {
+		switch x := Tokens[Scan+1].(type) {
+		case _lex.Operator:
+			if x.Kind == "=" {
+				return ParseAssignStatement()
+			} else if x.Kind == "+" || x.Kind == "-" || x.Kind == "*" || x.Kind == "/" {
+				stmt, err := ParseBinaryExpr(nil, 1)
+				pp.SetDefaultMaxDepth(-1)
+				pp.Println(stmt)
+				return stmt, err
+			}
+		default:
+			return nil, nil
+		}
+	} else {
+		return nil, nil
+	}
+	fmt.Println("error parsing statement")
+	os.Exit(0)
+	return nil, nil
+}
+
+func ParseAssignStatement() (_ast.Stmt, error) {
+	stmt := _ast.AssignStmt{}
+	var lhs _ast.Ident
+	switch x := Tokens[Scan].(type) {
+	case _lex.Ident:
+		lhs.Value = x.Value
+		lhs.Pos = x.Pos
+		lhs.End = x.End
+	}
+	stmt.Lhs = lhs
+	SafeInc()
+	err := SafeInc()
+	if err != nil {
+		return nil, err
+	}
+	switch Tokens[Scan].(type) {
+	case _lex.Ident:
+		return ParseStatement()
+	case _lex.Number:
+		return ParseStatement()
+	}
+	fmt.Println("error parsing assignment statement")
+	return nil, nil
+}
+
+func ParseBinaryExpr(prev *_ast.BinaryExpr, prec int) (*_ast.BinaryExpr, error) {
+	binaryExpr := _ast.BinaryExpr{}
+	if Scan+2 < len(Tokens) {
+		switch x := Tokens[Scan+1].(type) {
+		case _lex.RBrace:
+			return nil, nil
+		case _lex.Operator:
+			fmt.Println("operator is: ", x)
+			prec := 1
+			if x.Kind == "*" || x.Kind == "-" {
+				prec = 2
+			}
+			switch x := Tokens[Scan].(type) {
+			case _lex.Number:
+				binaryExpr.Lhs = &_ast.BasicLit{
+					Value: x.Value,
+				}
+			}
+			if prev != nil {
+				prev.Rhs = &binaryExpr
+			}
+			binaryExpr.Op = _ast.Operator{Type: x.Kind}
+			SafeInc()
+			SafeInc()
+			expr, err := ParseBinaryExpr(&binaryExpr, prec)
+			if err != nil {
+				return nil, err
+			}
+			if expr != nil {
+				binaryExpr.Rhs = expr
+			} else {
+				switch x := Tokens[Scan].(type) {
+				case _lex.Number:
+					binaryExpr.Rhs = &_ast.BasicLit{Value: x.Value}
+				}
+			}
+			return &binaryExpr, nil
+		}
+	}
+	fmt.Println("Error parsing Binary expression")
 	os.Exit(0)
 	return nil, nil
 }
