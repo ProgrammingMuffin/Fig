@@ -7,7 +7,6 @@ import (
 
 	_ast "github.com/ProgrammingMuffin/Fig/ast"
 	_lex "github.com/ProgrammingMuffin/Fig/lex"
-	"github.com/k0kubun/pp/v3"
 )
 
 var Scan int = 0
@@ -123,15 +122,26 @@ OUTSIDE:
 }
 
 func ParseStatement() (_ast.Stmt, error) {
+	switch Tokens[Scan].(type) {
+	case _lex.LParen:
+		term, err := ParseTerm()
+		if err != nil {
+			return nil, err
+		}
+		expr, err := ParseStatement()
+		switch x := expr.(type) {
+		case *_ast.BinaryExpr:
+			x.Lhs = term
+		}
+		return expr, nil
+	}
 	if (Scan + 1) < len(Tokens) {
 		switch x := Tokens[Scan+1].(type) {
 		case _lex.Operator:
 			if x.Kind == "=" {
 				return ParseAssignStatement()
 			} else if x.Kind == "+" || x.Kind == "-" || x.Kind == "*" || x.Kind == "/" {
-				stmt, err := ParseBinaryExpr(nil, 1)
-				pp.SetDefaultMaxDepth(-1)
-				pp.Println(stmt)
+				stmt, err := ParseBinaryExpr(nil, nil, 1)
 				return stmt, err
 			}
 		default:
@@ -163,18 +173,56 @@ func ParseAssignStatement() (_ast.Stmt, error) {
 	switch Tokens[Scan].(type) {
 	case _lex.Ident:
 		return ParseStatement()
+	case _lex.LParen:
+		term, err := ParseTerm()
+		if err != nil {
+			return nil, err
+		}
+		_, err = ParseBinaryExpr(nil, term, 0)
+		if err != nil {
+			return nil, err
+		}
+		stmt.Rhs = term
+		return &stmt, nil
 	case _lex.Number:
-		return ParseStatement()
+		nextStmt, err := ParseStatement()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Rhs = nextStmt
+		return &stmt, nil
 	}
 	fmt.Println("error parsing assignment statement")
 	return nil, nil
 }
 
-func ParseBinaryExpr(prev *_ast.BinaryExpr, prec int) (*_ast.BinaryExpr, error) {
+func ParseTerm() (*_ast.Term, error) {
+	term := _ast.Term{}
+	err := SafeInc()
+	if err != nil {
+		return nil, err
+	}
+	stmt, err := ParseStatement()
+	if err != nil {
+		return nil, err
+	}
+	SafeInc()
+	switch Tokens[Scan].(type) {
+	case _lex.RParen:
+		term.ExprStmt = stmt
+		return &term, nil
+	default:
+		return nil, nil
+	}
+}
+
+func ParseBinaryExpr(prev *_ast.BinaryExpr, prevTerm _ast.ExprStmt, prec int) (*_ast.BinaryExpr, error) {
 	binaryExpr := _ast.BinaryExpr{}
 	if Scan+2 < len(Tokens) {
 		switch x := Tokens[Scan+1].(type) {
 		case _lex.RBrace:
+			return nil, nil
+		case _lex.RParen:
 			return nil, nil
 		case _lex.Operator:
 			fmt.Println("operator is: ", x)
@@ -190,11 +238,21 @@ func ParseBinaryExpr(prev *_ast.BinaryExpr, prec int) (*_ast.BinaryExpr, error) 
 			}
 			if prev != nil {
 				prev.Rhs = &binaryExpr
+			} else if prevTerm != nil {
+				binaryExpr.Lhs = prevTerm
 			}
 			binaryExpr.Op = _ast.Operator{Type: x.Kind}
 			SafeInc()
 			SafeInc()
-			expr, err := ParseBinaryExpr(&binaryExpr, prec)
+			switch Tokens[Scan].(type) {
+			case _lex.LParen:
+				term, err := ParseTerm()
+				if err != nil {
+					return nil, err
+				}
+				binaryExpr.Rhs = term
+			}
+			expr, err := ParseBinaryExpr(&binaryExpr, nil, prec)
 			if err != nil {
 				return nil, err
 			}

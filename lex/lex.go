@@ -23,6 +23,18 @@ type RBrace struct {
 	End int
 }
 
+type LParen struct {
+	Token
+	Pos int
+	End int
+}
+
+type RParen struct {
+	Token
+	Pos int
+	End int
+}
+
 type DoubleQuote struct {
 	Token
 	Pos int
@@ -122,11 +134,15 @@ func LexSourceFile(sourceFile string) []Token {
 					tokens = append(tokens, Number{Pos: pos, End: end, Value: numberValue.String()})
 					numberValue.Reset()
 				}
-			} else if isSymbol(char) && (unicode.IsLetter(rune(data[index+1])) || unicode.IsNumber(rune(data[index+1])) || data[index+1] == ' ' || data[index+1] == '\t' || data[index+1] == '\n') && !isSymbol(data[index+1]) {
+			} else if isSymbol(char) && (unicode.IsLetter(rune(data[index+1])) || unicode.IsNumber(rune(data[index+1])) || data[index+1] == '(' || data[index+1] == ')' || data[index+1] == ' ' || data[index+1] == '\t' || data[index+1] == '\n') {
 				if symbol.Len() != 0 {
 					pos := index - len(symbol.String())
 					end := index
 					switch symbol.String() {
+					case "(":
+						tokens = append(tokens, LParen{Pos: pos, End: end})
+					case ")":
+						tokens = append(tokens, RParen{Pos: pos, End: end})
 					case "{":
 						tokens = append(tokens, LBrace{Pos: pos, End: end})
 					case "}":

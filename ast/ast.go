@@ -38,7 +38,15 @@ type Block struct {
 	Stmts  []Stmt
 }
 
+type Term struct {
+	LParen   int
+	RParen   int
+	ExprStmt Stmt
+}
+
 func (*BasicLit) Expr() {}
+func (*Term) Expr()     {}
+func (*Term) Stmt()     {}
 
 type ExprStmt interface {
 	Expr()
