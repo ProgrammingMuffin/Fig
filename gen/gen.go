@@ -50,6 +50,19 @@ func VisitStatement(node _ast.Stmt) {
 			Module.WriteString(y.Value)
 		case *_ast.BinaryExpr:
 			VisitStatement(y)
+		case *_ast.Term:
+			Module.WriteString("( ")
+			switch z := y.ExprStmt.(type) {
+			case *_ast.BinaryExpr:
+				VisitStatement(z)
+			}
+			Module.WriteString(" )")
+		}
+	case *_ast.Term:
+		Module.WriteString("( ")
+		switch z := x.ExprStmt.(type) {
+		case *_ast.BinaryExpr:
+			VisitStatement(z)
 		}
 	}
 }

@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 	"unicode"
+
+	"github.com/k0kubun/pp"
 )
 
 type Token interface {
@@ -64,6 +66,7 @@ type Ident struct {
 
 type Number struct {
 	Token
+	Kind  string
 	Value string
 	Pos   int
 	End   int
@@ -113,11 +116,15 @@ func LexSourceFile(sourceFile string) []Token {
 			}
 		} else {
 			if isSymbol(char) {
-				symbol.WriteByte(char)
+				if char == '.' && unicode.IsNumber(rune(data[index-1])) {
+					numberValue.WriteByte(char)
+				} else {
+					symbol.WriteByte(char)
+				}
 			}
 		}
 		if index < (len(data) - 1) {
-			if !isSymbol(char) && !unicode.IsLetter(rune(data[index+1])) && !unicode.IsNumber(rune(data[index+1])) && data[index+1] != '_' {
+			if !isSymbol(char) && !unicode.IsLetter(rune(data[index+1])) && !unicode.IsNumber(rune(data[index+1])) && data[index+1] != '.' && data[index+1] != '_' {
 				if value.Len() != 0 {
 					pos := index - len(value.String()) + 1
 					end := index
@@ -131,7 +138,11 @@ func LexSourceFile(sourceFile string) []Token {
 				} else if numberValue.Len() != 0 {
 					pos := index - len(numberValue.String()) + 1
 					end := index
-					tokens = append(tokens, Number{Pos: pos, End: end, Value: numberValue.String()})
+					kind := "int"
+					if strings.Contains(numberValue.String(), ".") {
+						kind = "float"
+					}
+					tokens = append(tokens, Number{Pos: pos, End: end, Value: numberValue.String(), Kind: kind})
 					numberValue.Reset()
 				}
 			} else if isSymbol(char) && (unicode.IsLetter(rune(data[index+1])) || unicode.IsNumber(rune(data[index+1])) || data[index+1] == '(' || data[index+1] == ')' || data[index+1] == ' ' || data[index+1] == '\t' || data[index+1] == '\n') {
@@ -165,7 +176,8 @@ func LexSourceFile(sourceFile string) []Token {
 			}
 		}
 	}
-	fmt.Println("The tokens are: ", tokens)
+	fmt.Println("The tokens are: ")
+	pp.Println(tokens)
 	return tokens
 }
 
@@ -179,5 +191,5 @@ func charIn(char byte, chars ...byte) bool {
 }
 
 func isSymbol(char byte) bool {
-	return charIn(char, '{', '}', '(', ')', ';', '+', '*', '/', '-', '=')
+	return charIn(char, '{', '}', '(', ')', ';', '+', '*', '/', '-', '=', '.')
 }
