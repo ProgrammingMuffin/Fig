@@ -6,6 +6,8 @@ type Node interface {
 
 func (*FuncDecl) Symbol()   {}
 func (*Ident) Symbol()      {}
+func (*Ident) Stmt()        {}
+func (*Ident) Expr()        {}
 func (*Block) Symbol()      {}
 func (*BasicLit) Symbol()   {}
 func (*BinaryExpr) Symbol() {}
@@ -18,6 +20,7 @@ type FuncDecl struct {
 }
 
 type Ident struct {
+	Type  string
 	Value string
 	Pos   int
 	End   int

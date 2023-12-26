@@ -33,6 +33,8 @@ func VisitStatement(node _ast.Stmt) {
 		VisitStatement(x.Rhs)
 	case *_ast.BinaryExpr:
 		switch y := x.Lhs.(type) {
+		case *_ast.Ident:
+			Module.WriteString(y.Value + " " + x.Op.Type + " ")
 		case *_ast.BasicLit:
 			Module.WriteString(y.Value + " " + x.Op.Type + " ")
 		case *_ast.BinaryExpr:
@@ -46,6 +48,8 @@ func VisitStatement(node _ast.Stmt) {
 			Module.WriteString(" ) " + x.Op.Type + " ")
 		}
 		switch y := x.Rhs.(type) {
+		case *_ast.Ident:
+			Module.WriteString(y.Value)
 		case *_ast.BasicLit:
 			Module.WriteString(y.Value)
 		case *_ast.BinaryExpr:

@@ -231,6 +231,8 @@ func ParseBinaryExpr(prev *_ast.BinaryExpr, prevTerm _ast.ExprStmt, prec int) (*
 				prec = 2
 			}
 			switch x := Tokens[Scan].(type) {
+			case _lex.Ident:
+				binaryExpr.Lhs = &_ast.Ident{Value: x.Value, Pos: x.Pos, End: x.End}
 			case _lex.Number:
 				binaryExpr.Lhs = &_ast.BasicLit{
 					Value: x.Value,
@@ -260,6 +262,8 @@ func ParseBinaryExpr(prev *_ast.BinaryExpr, prevTerm _ast.ExprStmt, prec int) (*
 				binaryExpr.Rhs = expr
 			} else {
 				switch x := Tokens[Scan].(type) {
+				case _lex.Ident:
+					binaryExpr.Rhs = &_ast.Ident{Value: x.Value, Pos: x.Pos, End: x.End}
 				case _lex.Number:
 					binaryExpr.Rhs = &_ast.BasicLit{Value: x.Value}
 				}
