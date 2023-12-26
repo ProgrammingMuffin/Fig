@@ -89,7 +89,6 @@ func ParseBlock() (*_ast.Block, error) {
 		block.RBrace = x.Pos
 		return &block, nil
 	}
-	SafeInc()
 	switch x := Tokens[Scan].(type) {
 	case _lex.RBrace:
 		block.RBrace = x.Pos
@@ -114,6 +113,10 @@ func ParseStatements() ([]_ast.Stmt, error) {
 		if stmt != nil {
 			stmts = append(stmts, stmt)
 		} else {
+			if err != nil {
+				stmt, err = ParseStatement()
+				stmts = append(stmts, stmt)
+			}
 			goto OUTSIDE
 		}
 	}
@@ -172,7 +175,11 @@ func ParseAssignStatement() (_ast.Stmt, error) {
 	}
 	switch Tokens[Scan].(type) {
 	case _lex.Ident:
-		return ParseStatement()
+		nextStmt, err := ParseStatement()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Rhs = nextStmt
 	case _lex.LParen:
 		term, err := ParseTerm()
 		if err != nil {
@@ -183,13 +190,17 @@ func ParseAssignStatement() (_ast.Stmt, error) {
 			return nil, err
 		}
 		stmt.Rhs = term
-		return &stmt, nil
 	case _lex.Number:
 		nextStmt, err := ParseStatement()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Rhs = nextStmt
+	}
+	SafeInc()
+	switch Tokens[Scan].(type) {
+	case _lex.Semicolon:
+		SafeInc()
 		return &stmt, nil
 	}
 	fmt.Println("error parsing assignment statement")
@@ -220,6 +231,8 @@ func ParseBinaryExpr(prev *_ast.BinaryExpr, prevTerm _ast.ExprStmt, prec int) (*
 	binaryExpr := _ast.BinaryExpr{}
 	if Scan+2 < len(Tokens) {
 		switch x := Tokens[Scan+1].(type) {
+		case _lex.Semicolon:
+			return nil, nil
 		case _lex.RBrace:
 			return nil, nil
 		case _lex.RParen:
@@ -236,6 +249,7 @@ func ParseBinaryExpr(prev *_ast.BinaryExpr, prevTerm _ast.ExprStmt, prec int) (*
 			case _lex.Number:
 				binaryExpr.Lhs = &_ast.BasicLit{
 					Value: x.Value,
+					Kind:  x.Kind,
 				}
 			}
 			if prev != nil {
@@ -265,7 +279,7 @@ func ParseBinaryExpr(prev *_ast.BinaryExpr, prevTerm _ast.ExprStmt, prec int) (*
 				case _lex.Ident:
 					binaryExpr.Rhs = &_ast.Ident{Value: x.Value, Pos: x.Pos, End: x.End}
 				case _lex.Number:
-					binaryExpr.Rhs = &_ast.BasicLit{Value: x.Value}
+					binaryExpr.Rhs = &_ast.BasicLit{Value: x.Value, Kind: x.Kind}
 				}
 			}
 			return &binaryExpr, nil

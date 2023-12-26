@@ -5,12 +5,16 @@ import (
 	"os"
 	"strings"
 	"unicode"
-
-	"github.com/k0kubun/pp"
 )
 
 type Token interface {
 	GetPos() (int, int)
+}
+
+type Semicolon struct {
+	Token
+	Pos int
+	End int
 }
 
 type LBrace struct {
@@ -145,7 +149,7 @@ func LexSourceFile(sourceFile string) []Token {
 					tokens = append(tokens, Number{Pos: pos, End: end, Value: numberValue.String(), Kind: kind})
 					numberValue.Reset()
 				}
-			} else if isSymbol(char) && (unicode.IsLetter(rune(data[index+1])) || unicode.IsNumber(rune(data[index+1])) || data[index+1] == '(' || data[index+1] == ')' || data[index+1] == ' ' || data[index+1] == '\t' || data[index+1] == '\n') {
+			} else if isSymbol(char) && (unicode.IsLetter(rune(data[index+1])) || unicode.IsNumber(rune(data[index+1])) || data[index+1] == '(' || data[index+1] == ')' || data[index+1] == ';' || data[index+1] == ' ' || data[index+1] == '\t' || data[index+1] == '\n') {
 				if symbol.Len() != 0 {
 					pos := index - len(symbol.String())
 					end := index
@@ -170,14 +174,16 @@ func LexSourceFile(sourceFile string) []Token {
 						tokens = append(tokens, Operator{Pos: pos, End: end, Kind: "-"})
 					case "=":
 						tokens = append(tokens, Operator{Pos: pos, End: end, Kind: "="})
+					case ";":
+						tokens = append(tokens, Semicolon{Pos: pos, End: end})
 					}
 					symbol.Reset()
 				}
 			}
 		}
 	}
-	fmt.Println("The tokens are: ")
-	pp.Println(tokens)
+	// fmt.Println("The tokens are: ")
+	// pp.Println(tokens)
 	return tokens
 }
 
@@ -191,5 +197,5 @@ func charIn(char byte, chars ...byte) bool {
 }
 
 func isSymbol(char byte) bool {
-	return charIn(char, '{', '}', '(', ')', ';', '+', '*', '/', '-', '=', '.')
+	return charIn(char, '{', '}', '(', ')', ';', '+', '*', '/', '-', '=', '.', ';')
 }

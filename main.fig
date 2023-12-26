@@ -1,6 +1,8 @@
 func Test {
-    x = 100.50 + y * (3 + 5)
+    y = 1 + 2;
+    x = 1 + y * (3 + 5);
+    z = x * y;
 }
 
-func Test2 {
+func main {
 }
