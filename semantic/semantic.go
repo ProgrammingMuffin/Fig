@@ -5,7 +5,6 @@ import (
 	"os"
 
 	_ast "github.com/ProgrammingMuffin/Fig/ast"
-	"github.com/k0kubun/pp"
 )
 
 var Symtab map[string]string = make(map[string]string) //matches symbol with type names
@@ -39,8 +38,6 @@ func VisitStatement(node _ast.Stmt) string {
 }
 
 func VisitBinaryExpression(node _ast.BinaryExpr) string {
-	fmt.Println("symtab is : ")
-	pp.Println(Symtab)
 	type1 := ""
 	type2 := ""
 	switch x := node.Lhs.(type) {
@@ -55,6 +52,8 @@ func VisitBinaryExpression(node _ast.BinaryExpr) string {
 			type1 = val
 			x.Type = val
 		}
+	case *_ast.TypeCast:
+		type1 = VisitTypeCast(x)
 	}
 	switch x := node.Rhs.(type) {
 	case *_ast.BasicLit:
@@ -68,6 +67,8 @@ func VisitBinaryExpression(node _ast.BinaryExpr) string {
 			type2 = val
 			x.Type = val
 		}
+	case *_ast.TypeCast:
+		type2 = VisitTypeCast(x)
 	}
 	if type1 == type2 && type1 != "" {
 		return type1
@@ -75,4 +76,8 @@ func VisitBinaryExpression(node _ast.BinaryExpr) string {
 	fmt.Println("Type mismatch in binary expression")
 	os.Exit(0)
 	return type1
+}
+
+func VisitTypeCast(node *_ast.TypeCast) string {
+	return node.Kind
 }

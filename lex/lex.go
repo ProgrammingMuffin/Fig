@@ -135,6 +135,10 @@ func LexSourceFile(sourceFile string) []Token {
 					switch value.String() {
 					case "func":
 						tokens = append(tokens, Keyword{Pos: pos, End: end, Value: "func"})
+					case "float":
+						tokens = append(tokens, Keyword{Pos: pos, End: end, Value: "float"})
+					case "int":
+						tokens = append(tokens, Keyword{Pos: pos, End: end, Value: "int"})
 					default:
 						tokens = append(tokens, Ident{Pos: pos, End: end, Value: value.String()})
 					}

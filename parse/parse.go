@@ -58,6 +58,26 @@ func ParseFuncDecl() (*_ast.FuncDecl, error) {
 		return nil, err
 	}
 	switch Tokens[Scan].(type) {
+	case _lex.LParen:
+		// do nothing
+	default:
+		return nil, nil
+	}
+	err = SafeInc()
+	if err != nil {
+		return nil, err
+	}
+	switch Tokens[Scan].(type) {
+	case _lex.RParen:
+		// do nothing
+	default:
+		return nil, nil
+	}
+	err = SafeInc()
+	if err != nil {
+		return nil, err
+	}
+	switch Tokens[Scan].(type) {
 	case _lex.LBrace:
 		block, err := ParseBlock()
 		if err != nil {
@@ -137,6 +157,11 @@ func ParseStatement() (_ast.Stmt, error) {
 			x.Lhs = term
 		}
 		return expr, nil
+	case _lex.Ident:
+		switch Tokens[Scan+1].(type) {
+		case _lex.LParen:
+			return ParseCallExpr()
+		}
 	}
 	if (Scan + 1) < len(Tokens) {
 		switch x := Tokens[Scan+1].(type) {
@@ -154,6 +179,38 @@ func ParseStatement() (_ast.Stmt, error) {
 		return nil, nil
 	}
 	fmt.Println("error parsing statement")
+	os.Exit(0)
+	return nil, nil
+}
+
+func ParseCallExpr() (*_ast.CallExpr, error) {
+	callExpr := _ast.CallExpr{}
+	switch x := Tokens[Scan].(type) {
+	case _lex.Ident:
+		callExpr.Value = _ast.Ident{Value: x.Value, Pos: x.Pos, End: x.End}
+	}
+	err := SafeInc()
+	if err != nil {
+		return nil, err
+	}
+	switch y := Tokens[Scan].(type) {
+	case _lex.LParen:
+		callExpr.LParen = y.Pos
+		err = SafeInc()
+		if err != nil {
+			return nil, err
+		}
+		switch z := Tokens[Scan].(type) {
+		case _lex.RParen:
+			callExpr.RParen = z.Pos
+			err := SafeInc()
+			if err != nil {
+				return nil, err
+			}
+			return &callExpr, nil
+		}
+	}
+	fmt.Println("error parsing call expression: ")
 	os.Exit(0)
 	return nil, nil
 }
@@ -227,7 +284,44 @@ func ParseTerm() (*_ast.Term, error) {
 	}
 }
 
+func ParseTypeCast() (*_ast.TypeCast, error) {
+	typeCast := _ast.TypeCast{}
+	switch x := Tokens[Scan].(type) {
+	case _lex.Keyword:
+		typeCast.Kind = x.Value
+	}
+	err := SafeInc()
+	if err != nil {
+		return nil, err
+	}
+	switch x := Tokens[Scan].(type) {
+	case _lex.LParen:
+		typeCast.LParen = x.Pos
+	}
+	err = SafeInc()
+	if err != nil {
+		return nil, err
+	}
+	switch x := Tokens[Scan].(type) {
+	case _lex.Ident:
+		typeCast.Value = _ast.Ident{Value: x.Value, Pos: x.Pos, End: x.End}
+	}
+	err = SafeInc()
+	if err != nil {
+		return nil, err
+	}
+	switch x := Tokens[Scan].(type) {
+	case _lex.RParen:
+		typeCast.RParen = x.Pos
+		return &typeCast, nil
+	}
+	fmt.Println("error parsing type cast")
+	os.Exit(0)
+	return nil, nil
+}
+
 func ParseBinaryExpr(prev *_ast.BinaryExpr, prevTerm _ast.ExprStmt, prec int) (*_ast.BinaryExpr, error) {
+	var nextPrevTerm _ast.ExprStmt
 	binaryExpr := _ast.BinaryExpr{}
 	if Scan+2 < len(Tokens) {
 		switch x := Tokens[Scan+1].(type) {
@@ -238,12 +332,23 @@ func ParseBinaryExpr(prev *_ast.BinaryExpr, prevTerm _ast.ExprStmt, prec int) (*
 		case _lex.RParen:
 			return nil, nil
 		case _lex.Operator:
-			fmt.Println("operator is: ", x)
 			prec := 1
 			if x.Kind == "*" || x.Kind == "-" {
 				prec = 2
 			}
 			switch x := Tokens[Scan].(type) {
+			case _lex.Keyword:
+				if x.Value != "float" && x.Value != "int" {
+					// error out
+				}
+				switch Tokens[Scan+1].(type) {
+				case _lex.LParen:
+					typeCast, err := ParseTypeCast()
+					if err != nil {
+						return nil, err
+					}
+					binaryExpr.Lhs = typeCast
+				}
 			case _lex.Ident:
 				binaryExpr.Lhs = &_ast.Ident{Value: x.Value, Pos: x.Pos, End: x.End}
 			case _lex.Number:
@@ -254,21 +359,36 @@ func ParseBinaryExpr(prev *_ast.BinaryExpr, prevTerm _ast.ExprStmt, prec int) (*
 			}
 			if prev != nil {
 				prev.Rhs = &binaryExpr
-			} else if prevTerm != nil {
+			}
+			if prevTerm != nil {
 				binaryExpr.Lhs = prevTerm
 			}
 			binaryExpr.Op = _ast.Operator{Type: x.Kind}
 			SafeInc()
 			SafeInc()
-			switch Tokens[Scan].(type) {
+			switch x := Tokens[Scan].(type) {
 			case _lex.LParen:
 				term, err := ParseTerm()
 				if err != nil {
 					return nil, err
 				}
 				binaryExpr.Rhs = term
+				nextPrevTerm = term
+			case _lex.Keyword:
+				if x.Value != "float" && x.Value != "int" {
+					// error out
+				}
+				switch Tokens[Scan+1].(type) {
+				case _lex.LParen:
+					typeCast, err := ParseTypeCast()
+					if err != nil {
+						return nil, err
+					}
+					binaryExpr.Rhs = typeCast
+					nextPrevTerm = typeCast
+				}
 			}
-			expr, err := ParseBinaryExpr(&binaryExpr, nil, prec)
+			expr, err := ParseBinaryExpr(&binaryExpr, nextPrevTerm, prec)
 			if err != nil {
 				return nil, err
 			}
@@ -276,6 +396,18 @@ func ParseBinaryExpr(prev *_ast.BinaryExpr, prevTerm _ast.ExprStmt, prec int) (*
 				binaryExpr.Rhs = expr
 			} else {
 				switch x := Tokens[Scan].(type) {
+				case _lex.Keyword:
+					if x.Value != "float" && x.Value != "int" {
+						// error out
+					}
+					switch Tokens[Scan+1].(type) {
+					case _lex.LParen:
+						typeCast, err := ParseTypeCast()
+						if err != nil {
+							return nil, err
+						}
+						binaryExpr.Rhs = typeCast
+					}
 				case _lex.Ident:
 					binaryExpr.Rhs = &_ast.Ident{Value: x.Value, Pos: x.Pos, End: x.End}
 				case _lex.Number:

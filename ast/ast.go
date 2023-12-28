@@ -13,6 +13,8 @@ func (*BasicLit) Symbol()   {}
 func (*BinaryExpr) Symbol() {}
 func (*AssignStmt) Symbol() {}
 func (*Operator) Symbol()   {}
+func (*CallExpr) Symbol()   {}
+func (*CallExpr) Stmt()     {}
 
 type FuncDecl struct {
 	Block    Block
@@ -24,6 +26,14 @@ type Ident struct {
 	Value string
 	Pos   int
 	End   int
+}
+
+type CallExpr struct {
+	LParen int
+	RParen int
+	Value  Ident
+	Pos    int
+	End    int
 }
 
 type BasicLit struct {
@@ -71,6 +81,16 @@ type AssignStmt struct {
 
 func (*AssignStmt) Stmt() {}
 
+func (*TypeCast) Stmt() {}
+func (*TypeCast) Expr() {}
+
 type Operator struct {
 	Type string
+}
+
+type TypeCast struct {
+	Kind   string
+	Value  Ident
+	LParen int
+	RParen int
 }

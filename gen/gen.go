@@ -29,7 +29,7 @@ func VisitBlock(node _ast.Block) {
 func VisitStatement(node _ast.Stmt) {
 	switch x := node.(type) {
 	case *_ast.AssignStmt:
-		Module.WriteString("int " + x.Lhs.Value + " = ")
+		Module.WriteString(x.Lhs.Type + " " + x.Lhs.Value + " = ")
 		VisitStatement(x.Rhs)
 	case *_ast.BinaryExpr:
 		switch y := x.Lhs.(type) {
@@ -46,6 +46,9 @@ func VisitStatement(node _ast.Stmt) {
 				VisitStatement(z)
 			}
 			Module.WriteString(" ) " + x.Op.Type + " ")
+		case *_ast.TypeCast:
+			VisitTypeCast(*y)
+			Module.WriteString(" " + x.Op.Type + " ")
 		}
 		switch y := x.Rhs.(type) {
 		case *_ast.Ident:
@@ -61,6 +64,8 @@ func VisitStatement(node _ast.Stmt) {
 				VisitStatement(z)
 			}
 			Module.WriteString(" )")
+		case *_ast.TypeCast:
+			VisitTypeCast(*y)
 		}
 	case *_ast.Term:
 		Module.WriteString("( ")
@@ -68,5 +73,11 @@ func VisitStatement(node _ast.Stmt) {
 		case *_ast.BinaryExpr:
 			VisitStatement(z)
 		}
+	case *_ast.CallExpr:
+		Module.WriteString(x.Value.Value + "()")
 	}
+}
+
+func VisitTypeCast(node _ast.TypeCast) {
+	Module.WriteString("(" + node.Kind + ") " + node.Value.Value)
 }
